@@ -42,6 +42,7 @@ function createGeminiClient({ apiKey, model, fetchImpl = globalThis.fetch, timeo
   return { model, generate };
 }
 
-const mediaPart = (buffer, mimeType) => ({ inlineData: { mimeType, data: Buffer.from(buffer).toString("base64") } });
+// O navegador chama AVI de video/x-msvideo; a API do Gemini espera video/avi.
+const mediaPart = (buffer, mimeType) => ({ inlineData: { mimeType: mimeType === "video/x-msvideo" ? "video/avi" : mimeType, data: Buffer.from(buffer).toString("base64") } });
 
 module.exports = { createGeminiClient, mediaPart };

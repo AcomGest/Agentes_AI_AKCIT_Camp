@@ -26,7 +26,7 @@ flowchart LR
 
 | Entrada | De onde vem | Regras |
 | --- | --- | --- |
-| Vídeo curto ou imagens exportados do aparelho | Upload no módulo de Ultrassom | JPEG, PNG, MP4 ou MOV; até 4 arquivos; até 8 MB por arquivo e 15 MB no total (5,5 MB pela tela do app) |
+| Vídeo curto ou imagens exportados do aparelho | Upload no módulo de Ultrassom | JPEG, PNG, MP4, MOV ou AVI; até 4 arquivos; até 14 MB no total |
 | Animal do exame | Escolhido na tela, entre os animais da fazenda | Precisa existir na fazenda do usuário |
 | Data do exame, aparelho, nome do veterinário | Tela | Data obrigatória (AAAA-MM-DD) |
 | Serviços reprodutivos do animal | Banco da AcomGest (Reprodução) | Inseminação, IATF, cobertura, transferência de embrião; eventos cancelados ficam de fora |

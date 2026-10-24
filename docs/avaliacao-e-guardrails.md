@@ -27,6 +27,19 @@ O agente foi construído para errar de forma segura: quando não tem certeza, el
 
 Os dois testes usam um modelo falso: eles provam a lógica do agente, não a qualidade da leitura do Gemini.
 
+## Primeira execução com exame real (24/10/2026)
+
+Um vídeo AVI de 13 MB exportado de um aparelho Mindray, rodado com o Gemini (`gemini-flash-latest`, resposta do modelo `gemini-3.8-flash`). É uma execução, não uma medida de acerto: o exame ainda não tem rótulo do veterinário.
+
+| O que o agente fez | Resultado |
+| --- | --- |
+| Leu o texto da tela | Animal "faisca", data 26/09/2026, aparelho "Mindray DP-10Vet Power"; nenhuma medida na tela |
+| Exame aberto para outro brinco (1042) | Bloqueou: "A tela mostra o animal faisca, mas o exame foi aberto para o brinco 1042" |
+| Exame aberto para o animal certo | Rascunho sem bloqueio |
+| Medidas | Descreveu estrutura ovariana/lútea visível, mas deixou o corpo lúteo vazio por não haver medida na tela (nenhum número inventado) |
+| Gestação | "indeterminado", confiança 50%, com a evidência "exame focado em ovário"; gerou alerta de baixa confiança |
+| Custo e tempo do Leitor | 622 tokens de entrada e 509 de saída, 16 s |
+
 ## Avaliação da leitura com exames reais (a fazer)
 
 A qualidade do Leitor só pode ser medida com exames reais rotulados por médico-veterinário. O avaliador já está pronto:

@@ -9,10 +9,12 @@
 const DEFAULT_CONFIG = {
   promptVersion: "ultrassom-leitor-v1",
   media: {
-    allowedMimeTypes: ["image/jpeg", "image/png", "video/mp4", "video/quicktime"],
+    // AVI é o formato que muitos aparelhos de ultrassom exportam.
+    allowedMimeTypes: ["image/jpeg", "image/png", "video/mp4", "video/quicktime", "video/avi", "video/x-msvideo"],
     maxFiles: 4,
-    maxBytesPerFile: 8 * 1024 * 1024,
-    maxTotalBytes: 15 * 1024 * 1024
+    // Envio direto ao Gemini (inlineData) aceita até 20 MB por pedido, já em base64.
+    maxBytesPerFile: 14 * 1024 * 1024,
+    maxTotalBytes: 14 * 1024 * 1024
   },
   // Abaixo disso o campo vai para o rascunho marcado "conferir".
   minConfidence: 0.6,
