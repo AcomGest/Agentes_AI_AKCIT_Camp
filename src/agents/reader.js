@@ -70,7 +70,10 @@ async function readScreen({ client, frames, attempts = 2, onStep = () => {} }) {
 
 /** Achados visuais: só as regiões recortadas, numeradas, sem nenhum contexto. */
 async function readVisual({ client, frames, species = "bovina", attempts = 2, onStep = () => {} }) {
-  const parts = [{ text: `Espécie: ${species}. ${frames.length} quadros recortados do exame.` }];
+  // Sem recorte (região da imagem não encontrada), o quadro inteiro vai junto
+  // com o texto da tela: o leitor é avisado para não usá-lo como achado.
+  const uncropped = frames.some((f) => f.cropped === false);
+  const parts = [{ text: `Espécie: ${species}. ${frames.length} quadros do exame${uncropped ? ". A região da imagem não foi isolada em alguns quadros: ignore textos, números e marcações das bordas e descreva só a imagem ultrassonográfica." : " recortados."}` }];
   for (const f of frames) parts.push({ text: `Quadro ${f.index}${f.time_s != null ? ` · t=${f.time_s} s` : ""}:` }, imagePart(f.roi));
   const result = await callWithContract({ client, instructions: VISUAL_INSTRUCTIONS, parts, schema: VISUAL_SCHEMA, attempts, onStep, stepName: "leitor_visual" });
   return result.ok ? { ok: true, output: normalizeVisual(result.output, frames.length) } : result;

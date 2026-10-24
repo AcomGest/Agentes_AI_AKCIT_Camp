@@ -22,7 +22,7 @@ O agente foi construído para errar de forma segura: quando não tem certeza, el
 
 | Teste | O que prova | Resultado |
 | --- | --- | --- |
-| `agents/ultrasound-agent/test/harness.test.js` | Guarda recusa sem chamar o modelo; caminho feliz; contrato inválido com nova tentativa e falha fechada; falha do modelo; animal divergente, idade gestacional divergente e medida sem tela bloqueiam; prenhe sem serviço e vazia após positivo; Verificador recusa número inventado e recomendação | 9 de 9 cenários passaram (v3) |
+| `agents/ultrasound-agent/test/harness.test.js` | Guarda recusa sem chamar o modelo; caminho feliz; contrato inválido com nova tentativa e falha fechada; falha do modelo; animal divergente, idade gestacional divergente e medida sem tela bloqueiam; prenhe sem serviço e vazia após positivo; Verificador recusa número inventado e recomendação | 10 de 10 cenários passaram (v3) |
 | `scripts/backend-ultrasound-agent-smoke-test.cjs` | Servidor real (SQLite): analisar não grava; sem permissão 403; outra fazenda 404; arquivo inválido 400; rascunho salvo com IA = Sim; Gerente não aprova; Veterinário aprova; exame sem IA mantém a regra antiga | 6 de 6 cenários passaram |
 
 Os dois testes usam um modelo falso: eles provam a lógica do agente, não a qualidade da leitura do Gemini.

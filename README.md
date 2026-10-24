@@ -38,7 +38,7 @@ O orquestrador ([src/harness.js](src/harness.js)) é código comum: ele decide a
 | # | Etapa | Tipo | O que faz | Se der errado |
 | --- | --- | --- | --- | --- |
 | 1 | **Guarda de entrada** ([inputGuard.js](src/agents/inputGuard.js)) | código | Confere animal, data, tipo, tamanho e quantidade dos arquivos, e calcula o SHA-256 de cada arquivo | `entrada_recusada`, sem chamar o modelo |
-| 2 | **Preparo dos quadros** ([frames.js](src/frames.js)) | código (ffmpeg) | Extrai 8 quadros distribuídos ao longo de cada vídeo, cada um com o seu instante. Recorta a região da imagem de ultrassom (por densidade de pixels), separando-a das bordas com texto. Registra a cobertura: quantos quadros, em quais instantes, de quantos segundos de vídeo | `falha_no_processamento`, que é diferente de "sem achados" |
+| 2 | **Preparo dos quadros** ([frames.js](src/frames.js)) | código (ffmpeg) | Extrai 8 quadros distribuídos ao longo de cada vídeo, cada um com o seu instante. Recorta a região da imagem de ultrassom (por densidade de pixels), separando-a das bordas com texto. Se a região não for encontrada, o quadro segue inteiro, o Leitor visual é avisado e sai o alerta `recorte_nao_encontrado`. Registra a cobertura: quantos quadros, em quais instantes, de quantos segundos de vídeo | `falha_no_processamento`, que é diferente de "sem achados" |
 | 3 | **Leitor de tela** ([reader.js](src/agents/reader.js), prompt `ultrassom-tela-v1`) | Gemini | Recebe o quadro inteiro e **só transcreve** os textos da tela, com a posição e o papel provável (identificação do paciente, data/hora, aparelho, transdutor, medida…). Não decide o que um texto significa. Medida só entra quando foi feita na tela | `leitura_invalida` após 1 nova tentativa |
 | 4 | **Leitor visual** ([reader.js](src/agents/reader.js), prompt `ultrassom-visual-v3`) | VLM Gemini | Recebe **só os recortes numerados** ("Quadro k · t s"), sem cadastro, histórico ou texto da tela. Para cada estrutura: identificação e status (identificado / hipótese / não identificado com segurança), quadros onde aparece, evidência visual, forma, contornos, ecogenicidade, ecotextura, conteúdo, relações, possível artefato, estado (compatível / alteração morfológica suspeita / inconclusiva), alterações suspeitas (achado observado → significado possível → hipótese patológica e diferenciais → como confirmar) e limitações. Lista também o que não foi possível avaliar, a situação da gestação e uma interpretação preliminar. Não inventa lateralidade, medidas, contagens, batimentos nem porcentagens | `leitura_invalida` após 1 nova tentativa; `falha_no_modelo` se o Gemini não responder |
 | — | **Normalização** ([schema.js](src/schema.js)) | código | Valida o contrato. Uma estrutura "identificada" sem quadro conferível vira "hipótese"; uma gestação sem quadro vira "inconclusiva"; estruturas fora da lista reprodutiva são marcadas | — |
@@ -51,6 +51,7 @@ O orquestrador ([src/harness.js](src/harness.js)) é código comum: ele decide a
 | Código | Severidade | Quando aparece |
 | --- | --- | --- |
 | `imagem_inutilizavel` | bloqueio | o Leitor visual diz que a imagem não serve para análise |
+| `recorte_nao_encontrado` | alerta | a região da imagem não foi isolada e o Leitor visual recebeu o quadro inteiro, com o texto da tela; conferir se algum achado veio do texto |
 | `identificacao_a_conferir` | alerta | há um texto na área do paciente diferente do brinco ou nome cadastrado. O significado do texto não está confirmado: pode ser o animal, o proprietário ou outro campo |
 | `identificacao_confere` / `identificacao_ausente_na_tela` | info | o texto bate com o cadastro / não há identificação na tela |
 | `data_a_conferir` | alerta | a data da tela é diferente da data do exame; as duas aparecem |
@@ -115,7 +116,7 @@ GEMINI_API_KEY=... GEMINI_MODEL=... node eval/run-eval.js <pasta-com-labels.json
 
 | Parte | Situação |
 | --- | --- |
-| Orquestrador, Guarda, Preparo dos quadros, Leitores de tela e visual, Cruzamento, Redator, Verificador | Feitos e testados com modelo falso (9 cenários) |
+| Orquestrador, Guarda, Preparo dos quadros, Leitores de tela e visual, Cruzamento, Redator, Verificador | Feitos e testados com modelo falso (10 cenários) |
 | Vídeo real de referência (Mindray, AVI) | Rodado com o Gemini: fontes separadas, quadros citados, cobertura informada (`eval/validate-reference.js`) |
 | Rota e tela no módulo de Ultrassom da AcomGest; aprovação só pelo Veterinário | Feitas e testadas no servidor (6 cenários, SQLite) |
 | Qualidade da leitura com exames reais | Ainda não medida: falta o conjunto rotulado por veterinário |

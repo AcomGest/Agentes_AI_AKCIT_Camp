@@ -93,6 +93,9 @@ async function runUltrasoundAgent(request, { vlmClient, writerClient = null, con
     no_findings: !visual.structures.some((s) => s.identification_status !== "não identificado com segurança")
   };
   const cross = crossCheck({ screen, visual, derived, animal: request.animal, exam: request.exam, history: request.history, config: cfg });
+  const uncropped = [...new Set(frames.filter((f) => f.cropped === false).map((f) => f.media))];
+  if (uncropped.length) cross.checks.push({ code: "recorte_nao_encontrado", severity: "alerta", section: "visual", data: { media: uncropped },
+    message: `A região da imagem não foi isolada no arquivo ${uncropped.join(", ")}: o leitor visual recebeu o quadro inteiro, com o texto da tela. Confira se algum achado veio do texto e não da imagem.` });
   step("cruzamento", { ok: true, blocked: cross.blocked, checks: cross.checks.map((c) => ({ code: c.code, severity: c.severity })) });
 
   // 6 e 7. Redator + Verificador

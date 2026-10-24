@@ -72,7 +72,8 @@ async function detectRoi(fullJpeg, dir) {
   if (!rows) return null;
   const sx = W / w, sy = H / h;
   const roi = { x: Math.floor(cols[0] * sx), y: Math.floor(rows[0] * sy), w: Math.ceil((cols[1] - cols[0] + 1) * sx), h: Math.ceil((rows[1] - rows[0] + 1) * sy) };
-  // Região pequena demais não é a imagem do exame: sem recorte (o leitor visual é avisado).
+  // Região pequena demais não é a imagem do exame: sem recorte. O quadro sai
+  // com cropped=false, o leitor visual é avisado e o Cruzamento gera um alerta.
   return roi.w * roi.h >= 0.12 * W * H ? { ...roi, frame_w: W, frame_h: H } : null;
 }
 
@@ -88,7 +89,7 @@ async function cropOne(fullBuffer, t, roi, dir, i) {
   const cropFilter = roi ? `crop=${roi.w}:${roi.h}:${roi.x}:${roi.y}` : "null";
   await run(["-i", full, "-vf", cropFilter, "-q:v", "2", "-y", crop]);
   await run(["-i", crop, "-vf", "scale=360:-2", "-q:v", "5", "-y", thumb]);
-  return { index: i + 1, time_s: t != null ? Math.round(t * 10) / 10 : null, full: fs.readFileSync(full), roi: fs.readFileSync(crop), thumb: fs.readFileSync(thumb) };
+  return { index: i + 1, time_s: t != null ? Math.round(t * 10) / 10 : null, cropped: Boolean(roi), full: fs.readFileSync(full), roi: fs.readFileSync(crop), thumb: fs.readFileSync(thumb) };
 }
 
 /**

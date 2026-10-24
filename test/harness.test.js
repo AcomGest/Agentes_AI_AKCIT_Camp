@@ -99,7 +99,17 @@ const opts = (client, extra = {}) => ({ vlmClient: client, prepareFrames: simula
   assert(out.checks.some((c) => c.code === "positivo_anterior" && /não equivale a resultado negativo/.test(c.message)));
   console.log("Clipe sem gestação após positivo: alerta sem virar negativo: OK");
 
-  // 9. Verificador
+  // 9. Sem recorte: leitor visual avisado e alerta para o veterinário
+  const uncroppedFrames = async (media) => { const p = await simulatedFrames(media); p.frames.forEach((f) => { f.cropped = false; }); return p; };
+  client = fakeClient();
+  out = await runUltrasoundAgent(base, opts(client, { prepareFrames: uncroppedFrames }));
+  assert(/não foi isolada/.test(client.calls.find((c) => c.isVisual).text), "leitor visual avisado");
+  assert(out.checks.some((c) => c.code === "recorte_nao_encontrado" && c.severity === "alerta"));
+  out = await runUltrasoundAgent(base, opts(fakeClient()));
+  assert(!out.checks.some((c) => c.code === "recorte_nao_encontrado"), "com recorte, sem alerta");
+  console.log("Sem recorte da imagem: leitor avisado e alerta de conferência: OK");
+
+  // 10. Verificador
   const facts = { exame: { data: "2026-10-20" }, achados: [{ quadros: [1, 2, 3] }] };
   assert.equal(verifyNarrative("Quadros 1 a 3, em 20/10/2026.", facts).ok, true, "lista [1,2,3] não vira decimal");
   assert.equal(verifyNarrative("Gestação de 52 dias.", facts).ok, false);
