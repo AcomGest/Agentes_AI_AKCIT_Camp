@@ -28,7 +28,7 @@ O resultado é um **rascunho**: só vira prontuário quando um usuário com perf
 
 ## Rodar
 
-Requer Node.js 22 ou mais recente. Sem dependências externas.
+Requer Node.js 22 ou mais recente e o `ffmpeg` (no PATH, ou em `FFMPEG_PATH`) para extrair os quadros dos vídeos. No modo `--simulado`, o ffmpeg não é usado.
 
 ```bash
 # testes do agente (modelo falso, sem chave)

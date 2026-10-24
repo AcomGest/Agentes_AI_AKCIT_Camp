@@ -15,7 +15,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { runUltrasoundAgent } = require("./src/harness");
 const { createGeminiClient } = require("./src/gemini");
-const { simulatedClient } = require("./src/simulated");
+const { simulatedClient, simulatedFrames } = require("./src/simulated");
 
 const MIME = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".mp4": "video/mp4", ".mov": "video/quicktime", ".avi": "video/avi" };
 const args = process.argv.slice(2);
@@ -40,7 +40,7 @@ const one = (name) => all(name)[0];
       ultrasounds: all("previous").map((s) => ({ date: s.split(":")[0], pregnancy: s.split(":")[1] }))
     }
   }, {
-    vlmClient: client, writerClient: simulated ? null : client,
+    vlmClient: client, writerClient: simulated ? null : client, ...(simulated ? { prepareFrames: simulatedFrames } : {}),
     // --max-mb aumenta o limite por arquivo na demonstração (o envio direto ao Gemini aceita até ~15 MB por pedido).
     config: one("max-mb") ? { media: { maxBytesPerFile: Number(one("max-mb")) * 1048576, maxTotalBytes: Number(one("max-mb")) * 1048576 } } : {}
   });
