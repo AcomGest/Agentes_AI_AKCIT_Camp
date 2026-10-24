@@ -53,10 +53,57 @@ const VLM_SCHEMA = {
       type: "object",
       properties: { usable: { type: "boolean" }, issues: { type: "array", items: { type: "string" } } },
       required: ["usable", "issues"]
+    },
+    // v2: descrição técnica e anatômica para o laudo. Nada daqui vai para os
+    // campos do prontuário: estimativas e hipóteses ficam em seções marcadas.
+    technical: {
+      type: "object",
+      properties: {
+        mode: { type: ["string", "null"] }, transducer: { type: ["string", "null"] }, frequency_mhz: { type: ["number", "null"] },
+        depth_cm: { type: ["number", "null"] }, preset: { type: ["string", "null"] }, is_video: { type: "boolean" },
+        quality: { type: "string", enum: ["EXCELENTE", "BOA", "REGULAR", "RUIM"] }, artifacts: { type: "array", items: { type: "string" } }
+      },
+      required: ["mode", "transducer", "frequency_mhz", "depth_cm", "preset", "is_video", "quality", "artifacts"]
+    },
+    structures: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" }, in_ontology: { type: "boolean" },
+          confidence_level: { type: "string", enum: ["ALTA", "MODERADA", "BAIXA"] }, justification: { type: "string" },
+          location: { type: "string" }, side: { type: "string", enum: ["direito", "esquerdo", "indeterminado"] },
+          major_mm: { type: ["number", "null"] }, minor_mm: { type: ["number", "null"] }, calibrated: { type: "boolean" },
+          echogenicity: { type: "string" }, description: { type: "string" }
+        },
+        required: ["name", "in_ontology", "confidence_level", "justification", "location", "side", "major_mm", "minor_mm", "calibrated", "echogenicity", "description"]
+      }
+    },
+    hypotheses: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          finding: { type: "string" }, compatible_with: { type: "string" },
+          confidence_level: { type: "string", enum: ["ALTA", "MODERADA", "BAIXA"] }, justification: { type: "string" },
+          confirm_by: { type: "string" }
+        },
+        required: ["finding", "compatible_with", "confidence_level", "justification", "confirm_by"]
+      }
+    },
+    limitations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { item: { type: "string" }, kind: { type: "string", enum: ["nao_visualizado", "ausencia_confirmada", "limitacao_tecnica"] } },
+        required: ["item", "kind"]
+      }
     }
   },
-  required: ["screen_text", "findings", "image_quality"]
+  required: ["screen_text", "findings", "image_quality", "technical", "structures", "hypotheses", "limitations"]
 };
+
+const ONTOLOGY = ["ovário", "folículo", "corpo lúteo", "cavidade luteal", "corno uterino", "corpo uterino", "conteúdo uterino", "vesícula embrionária", "embrião/feto"];
 
 const FINDING_KEYS = Object.keys(VLM_SCHEMA.properties.findings.properties);
 
@@ -86,7 +133,9 @@ function normalizeFindings(output) {
     f.confidence = Math.max(0, Math.min(1, Number(f.confidence) || 0));
     if (f.value === null) f.confidence = 0;
   }
+  // A ontologia é conferida pelo código, não pela palavra do modelo.
+  for (const s of output.structures || []) s.in_ontology = ONTOLOGY.includes(String(s.name || "").trim().toLowerCase());
   return output;
 }
 
-module.exports = { VLM_SCHEMA, FINDING_KEYS, validate, normalizeFindings };
+module.exports = { VLM_SCHEMA, FINDING_KEYS, ONTOLOGY, validate, normalizeFindings };

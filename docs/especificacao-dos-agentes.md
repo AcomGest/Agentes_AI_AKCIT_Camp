@@ -62,10 +62,11 @@ sequenceDiagram
 | `source` | `medida_na_tela`, `texto_na_tela`, `observacao_visual` ou `nao_visivel` |
 | Não pode | Estimar número a olho; escrever diagnóstico, prognóstico, tratamento ou recomendação |
 | Quando falha | JSON fora do contrato: 1 nova tentativa com a lista de erros; depois `leitura_invalida`. Rede ou tempo (60 s): `falha_no_modelo` |
-| Versão do prompt | `ultrassom-leitor-v1` (registrada na proveniência de cada laudo) |
+| Versão do prompt | `ultrassom-leitor-v2` (registrada na proveniência de cada laudo) |
+| Saída extra (v2) | `technical` (modo, transdutor, frequência, profundidade, preset, vídeo, qualidade, artefatos); `structures` (estrutura da ontologia, confiança ALTA/MODERADA/BAIXA com justificativa, lado, dimensão estimada com `calibrated`); `hypotheses` ("compatível com", confiança, como confirmar); `limitations` (não visualizado, ausência confirmada, limitação técnica). Nada disso entra nos campos do prontuário |
 | Arquivo | `src/agents/reader.js`, contrato em `src/schema.js` |
 
-**Prompt atual (resumo):** papel de auxiliar do veterinário em ultrassonografia reprodutiva de bovinos; ler primeiro o texto da tela; número só com `medida_na_tela`; observação visual com confiança honesta; não visível = nulo; evidência em uma frase; marcar imagem inutilizável; nunca concluir clinicamente.
+**Prompt atual (v2, resumo):** especialista em diagnóstico por imagem veterinário, com os quatro princípios da equipe (percepção separada de decisão, referência externa, calibração, confiança explícita); campos do prontuário só com medida da tela; estimativas e hipóteses "compatível com" em seções separadas; espécie informada pelo sistema; nunca tratamento, dose ou prognóstico. Texto completo em `src/agents/reader.js`.
 
 **Pontos para evoluir o prompt:** vocabulário dos aparelhos mais usados (abreviações de tela como CL, IG, CRL, BPD); exemplos de exames rotulados (few-shot) quando houver base; orientação por tipo de exame (diagnóstico de gestação, avaliação ovariana, sexagem fetal).
 

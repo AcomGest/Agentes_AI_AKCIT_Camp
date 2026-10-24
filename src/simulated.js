@@ -16,7 +16,14 @@ const SIMULATED_READING = {
     fluid_presence: { value: "sim", confidence: 0.75, evidence: "(simulado) líquido anecoico", source: "observacao_visual" },
     fetal_heartbeat: { value: null, confidence: 0, evidence: "", source: "nao_visivel" }
   },
-  image_quality: { usable: true, issues: [] }
+  image_quality: { usable: true, issues: [] },
+  technical: { mode: "B", transducer: "(simulado) linear transretal", frequency_mhz: 7.5, depth_cm: 8, preset: null, is_video: false, quality: "BOA", artifacts: [] },
+  structures: [
+    { name: "vesícula embrionária", in_ontology: true, confidence_level: "MODERADA", justification: "(simulado) conteúdo anecoico com embrião visível", location: "centro", side: "direito", major_mm: null, minor_mm: null, calibrated: false, echogenicity: "anecoica", description: "(simulado) vesícula com embrião" },
+    { name: "corpo lúteo", in_ontology: true, confidence_level: "ALTA", justification: "(simulado) medida CL na tela", location: "superior direito", side: "direito", major_mm: 24, minor_mm: null, calibrated: true, echogenicity: "hipoecoica", description: "(simulado) CL medido na tela" }
+  ],
+  hypotheses: [{ finding: "(simulado) vesícula com embrião no corno direito", compatible_with: "gestação inicial", confidence_level: "MODERADA", justification: "(simulado) embrião visível", confirm_by: "exame seriado" }],
+  limitations: [{ item: "(simulado) ovário contralateral", kind: "nao_visualizado" }]
 };
 
 function simulatedClient() {

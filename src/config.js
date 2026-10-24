@@ -7,7 +7,7 @@
  * conferência, nunca para concluir um diagnóstico.
  */
 const DEFAULT_CONFIG = {
-  promptVersion: "ultrassom-leitor-v1",
+  promptVersion: "ultrassom-leitor-v2",
   media: {
     // AVI é o formato que muitos aparelhos de ultrassom exportam.
     allowedMimeTypes: ["image/jpeg", "image/png", "video/mp4", "video/quicktime", "video/avi", "video/x-msvideo"],

@@ -14,13 +14,17 @@ const LABELS = {
   follicle_largest_mm: "Maior folículo (mm)", uterine_horn: "Corno uterino", fluid_presence: "Líquido", fetal_heartbeat: "Batimento cardíaco fetal"
 };
 
+// Valores do contrato em português legível para o texto do laudo.
+const HUMAN = { prenhe: "prenhe", vazia: "vazia", indeterminado: "indeterminada", sim: "presente", nao: "ausente", visivel: "visível", nao_visivel: "não visualizado", direito: "direito", esquerdo: "esquerdo", ambos: "ambos" };
+
 function buildFacts({ reading, animal, exam, cross }) {
-  const findings = Object.fromEntries(Object.entries(reading.findings).filter(([, f]) => f.value !== null).map(([k, f]) => [k, { value: f.value, confidence: f.confidence, evidence: f.evidence }]));
+  const findings = Object.fromEntries(Object.entries(reading.findings).filter(([, f]) => f.value !== null).map(([k, f]) => [LABELS[k] || k, { valor: HUMAN[f.value] ?? f.value, evidencia: f.evidence }]));
+  const checks = cross.checks.filter((c) => c.severity !== "info").map((c) => c.message);
   return {
     animal: { tag: animal.tag, name: animal.name || null, category: animal.category || null },
     exam: { date: exam.date, equipment: exam.equipment || reading.screen_text.equipment || null, veterinarian: exam.veterinarianName || null },
     findings,
-    checks: cross.checks.map((c) => ({ severity: c.severity, message: c.message })),
+    ...(checks.length ? { pontos_de_conferencia: checks } : {}),
     last_service: cross.lastService,
     previous_exam: cross.previousExam
   };
@@ -28,10 +32,9 @@ function buildFacts({ reading, animal, exam, cross }) {
 
 function templateNarrative(facts) {
   const lines = [`Exame ultrassonográfico do animal ${facts.animal.tag} em ${facts.exam.date}${facts.exam.equipment ? `, aparelho ${facts.exam.equipment}` : ""}.`];
-  const found = Object.entries(facts.findings).map(([k, f]) => `${LABELS[k] || k}: ${f.value}`);
+  const found = Object.entries(facts.findings).map(([k, f]) => `${k}: ${f.valor}`);
   lines.push(found.length ? `Achados lidos nas imagens: ${found.join("; ")}.` : "Nenhum achado legível nas imagens.");
-  const attention = facts.checks.filter((c) => c.severity !== "info");
-  if (attention.length) lines.push(`Pontos para conferência do veterinário: ${attention.map((c) => c.message).join(" ")}`);
+  if (facts.pontos_de_conferencia?.length) lines.push(`Pontos para conferência do veterinário: ${facts.pontos_de_conferencia.join(" ")}`);
   lines.push("Rascunho gerado por agente de IA; sem validade clínica até a aprovação do médico-veterinário responsável.");
   return lines.join(" ");
 }
@@ -49,7 +52,7 @@ function verifyNarrative(narrative, facts) {
 const WRITER_INSTRUCTIONS = [
   "Você redige o rascunho de prontuário de um exame de ultrassonografia de bovino, em português, em até 6 frases.",
   "Use somente os fatos do JSON recebido. Não acrescente número, data, achado, causa, diagnóstico, prognóstico, tratamento ou recomendação.",
-  "Cite os pontos de conferência exatamente como vieram. Termine dizendo que o rascunho só vale após aprovação do médico-veterinário."
+  "Escreva as datas no formato DD/MM/AAAA. Se houver pontos_de_conferencia, cite-os; se não houver, não mencione. Não copie nomes de campos nem valores técnicos entre aspas. Termine dizendo que o rascunho só vale após aprovação do médico-veterinário."
 ].join("\n");
 
 async function writeNarrative({ client, facts, onStep = () => {} }) {
