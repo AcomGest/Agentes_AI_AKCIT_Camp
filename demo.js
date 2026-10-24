@@ -3,7 +3,7 @@
 /**
  * Demonstração pelo terminal.
  *
- *   GEMINI_API_KEY=... GEMINI_MODEL=gemini-2.5-flash \
+ *   GEMINI_API_KEY=... GEMINI_MODEL=gemini-flash-latest \
  *   node agents/ultrasound-agent/demo.js --file exame.mp4 --animal 1042 --date 2026-10-20 --service 2026-09-05:IATF
  *
  *   node agents/ultrasound-agent/demo.js --simulado --file qualquer.png --animal 1042 --date 2026-10-20 --service 2026-09-05:IATF
