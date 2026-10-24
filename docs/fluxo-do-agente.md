@@ -1,5 +1,7 @@
 # Fluxo do agente — entradas, lógica e saídas
 
+> **Atualização 24/10/2026 (v3):** o leitor único foi dividido em Preparo dos quadros, Leitor de tela e Leitor visual, e as porcentagens de confiança foram removidas. O fluxo atual, com entradas, lógica e saídas, está no [README](../README.md#fluxo-do-agente-entradas-lógica-e-saídas). Onde este documento falar em "Leitor (VLM)" ou em confiança por campo, vale o README.
+
 O Agente de Ultrassonografia AcomGest transforma o vídeo ou as imagens exportados do aparelho de ultrassom em um rascunho de prontuário do animal, cruzado com o histórico reprodutivo dele, e entrega esse rascunho para o médico-veterinário assinar.
 
 ```mermaid

@@ -84,7 +84,7 @@ A resposta mantém cada fonte separada, para a tela mostrar de onde veio cada in
 
 | Documento | Conteúdo |
 | --- | --- |
-| [Fluxo do agente](docs/fluxo-do-agente.md) | Entradas, lógica e saídas (entregável do edital) |
+| [Fluxo do agente](#fluxo-do-agente-entradas-lógica-e-saídas) | Entradas, lógica e saídas (entregável do edital), nesta página |
 | [Arquitetura](docs/arquitetura.md) | Componentes, por que vários agentes, onde fica o estado, implantação |
 | [Especificação dos agentes](docs/especificacao-dos-agentes.md) | Área, contrato de entrada e saída, limites e interação de cada agente (base para os prompts) |
 | [Avaliação e guardrails](docs/avaliacao-e-guardrails.md) | Proteções, testes executados, avaliação com exames reais |

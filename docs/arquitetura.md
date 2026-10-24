@@ -1,5 +1,7 @@
 # Arquitetura
 
+> **Atualização 24/10/2026 (v3):** o leitor único foi dividido em Preparo dos quadros, Leitor de tela e Leitor visual, e as porcentagens de confiança foram removidas. O fluxo atual, com entradas, lógica e saídas, está no [README](../README.md#fluxo-do-agente-entradas-lógica-e-saídas). Onde este documento falar em "Leitor (VLM)" ou em confiança por campo, vale o README.
+
 O agente é um orquestrador com cinco papéis: dois usam IA (Leitor e Redator) e três são código determinístico (Guarda, Cruzamento e Verificador). A IA percebe e escreve; as regras conferem; o veterinário decide.
 
 ```mermaid
