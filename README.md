@@ -20,6 +20,7 @@ O resultado é um **rascunho**: só vira prontuário quando um usuário com perf
 | --- | --- |
 | [Fluxo do agente](docs/fluxo-do-agente.md) | Entradas, lógica e saídas (entregável do edital) |
 | [Arquitetura](docs/arquitetura.md) | Componentes, por que vários agentes, onde fica o estado, implantação |
+| [Especificação dos agentes](docs/especificacao-dos-agentes.md) | Área, contrato de entrada e saída, limites e interação de cada agente (base para os prompts) |
 | [Avaliação e guardrails](docs/avaliacao-e-guardrails.md) | Proteções, testes executados, avaliação com exames reais |
 | [Dados, LGPD e observabilidade](docs/lgpd-e-observabilidade.md) | Que dados passam, retenção, logs, como investigar uma resposta ruim |
 | [BMC](docs/bmc.md) | Business Model Canvas |
