@@ -122,6 +122,23 @@ GEMINI_API_KEY=... GEMINI_MODEL=... node eval/run-eval.js <pasta-com-labels.json
 | Qualidade da leitura com exames reais | Ainda não medida: falta o conjunto rotulado por veterinário |
 | Armazenamento do arquivo do exame | A construir (hoje só o hash) |
 
+## Correções de 24/10/2026
+
+Conferência dos documentos contra o código v3. Ficou só o que existe de fato.
+
+**No código**
+
+- **Recorte da imagem não encontrado:** o Leitor visual recebia o quadro inteiro, com o texto da tela, sem aviso. Agora ele é avisado e sai o alerta `recorte_nao_encontrado` para o veterinário.
+- **Avaliador (`eval/run-eval.js`):** lia um campo da versão anterior e não media nada. Agora mede gestação, medidas da tela e estruturas identificadas.
+
+**Nos documentos**
+
+- **Arquitetura e especificação dos agentes:** reescritas. Antes falavam em um leitor único, porcentagem de confiança, "11 verificações" e "limite de 8 etapas". Hoje são 7 etapas, 10 verificações mais o alerta de recorte, e limite de 12 etapas.
+- **LGPD:** dizia que o vídeo vai ao Gemini e que a AcomGest guarda o hash. Na verdade vão os quadros extraídos, que são apagados no fim. O hash só aparece na resposta da análise e no rodapé do laudo, não fica gravado.
+- **BMC:** estava escrito "confere com a IA, a IATF". Virou "confere com a inseminação, a IATF".
+- **Fluxo do agente:** agora aponta para este README, para não existirem duas versões diferentes.
+- **Pitch:** atualizado para as 7 etapas e o laudo em 6 seções, sem porcentagens.
+
 ## Licença
 
 MIT — ver [LICENSE](LICENSE).
