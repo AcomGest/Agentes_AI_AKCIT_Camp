@@ -18,7 +18,7 @@ function checkInput(request, config) {
   media.forEach((item, i) => {
     const size = item.buffer ? item.buffer.length : 0;
     total += size;
-    if (!config.media.allowedMimeTypes.includes(item.mimeType)) problems.push(`Arquivo ${i + 1}: tipo ${item.mimeType || "desconhecido"} não aceito (use JPEG, PNG, MP4 ou MOV).`);
+    if (!config.media.allowedMimeTypes.includes(item.mimeType)) problems.push(`Arquivo ${i + 1}: tipo ${item.mimeType || "desconhecido"} não aceito (use JPEG, PNG, MP4, MOV ou AVI).`);
     else if (!size) problems.push(`Arquivo ${i + 1}: vazio.`);
     else if (size > config.media.maxBytesPerFile) problems.push(`Arquivo ${i + 1}: maior que ${Math.round(config.media.maxBytesPerFile / 1048576)} MB.`);
     else accepted.push({ index: i, mimeType: item.mimeType, bytes: size, sha256: crypto.createHash("sha256").update(item.buffer).digest("hex") });
