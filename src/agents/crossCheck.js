@@ -1,16 +1,17 @@
 "use strict";
 
 /**
- * Agente de Cruzamento (determinístico). Compara o que o Leitor viu com o
- * histórico do animal na AcomGest. Cada verificação devolve o dado que a
- * originou; nenhuma conclui causa ou diagnóstico.
+ * Agente de Cruzamento (determinístico). Confere as FONTES entre si:
+ * texto da tela × cadastro, datas, medidas da tela × faixas, achados visuais ×
+ * histórico. Nenhuma verificação decide qual fonte está certa: mostra as duas
+ * para o veterinário conferir. Cadastro, histórico e texto da tela nunca são
+ * usados como evidência de estrutura anatômica.
  *
- * severity: "bloqueio" (o rascunho não pode ser aprovado sem o veterinário
- * resolver), "alerta" (conferir), "info".
+ * severity: "bloqueio" (não pode assinar sem resolver), "alerta" (conferir), "info".
  */
 const DAY = 86400000;
 const days = (a, b) => Math.round((Date.parse(a) - Date.parse(b)) / DAY);
-const norm = (v) => String(v || "").replace(/\s+/g, "").replace(/^0+/, "").toLowerCase();
+const norm = (v) => String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "").replace(/^0+/, "").toLowerCase();
 const brDate = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "");
 
 function parseScreenDate(text) {
@@ -22,66 +23,58 @@ function parseScreenDate(text) {
   return null;
 }
 
-function crossCheck({ reading, animal, exam, history = {}, config }) {
+function crossCheck({ screen, visual, derived, animal, exam, history = {}, config }) {
   const checks = [];
-  const add = (code, severity, message, data) => checks.push({ code, severity, message, data });
-  const f = reading.findings;
+  const add = (code, severity, message, data, section) => checks.push({ code, severity, message, data, section });
 
-  if (!reading.image_quality.usable) {
-    add("imagem_inutilizavel", "bloqueio", `O Leitor marcou a imagem como inutilizável: ${reading.image_quality.issues.join("; ") || "sem detalhe"}.`, { issues: reading.image_quality.issues });
+  if (!visual.image_quality.usable) {
+    add("imagem_inutilizavel", "bloqueio", `O leitor visual marcou a imagem como não avaliável: ${visual.image_quality.issues.join("; ") || "sem detalhe"}.`, { issues: visual.image_quality.issues }, "visual");
   }
 
-  const screenId = reading.screen_text.animal_id;
-  if (screenId && norm(screenId) !== norm(animal.tag)) {
-    add("animal_divergente", "bloqueio", `A tela mostra o animal "${screenId}", mas o exame foi aberto para o brinco ${animal.tag}.`, { screen: screenId, selected: animal.tag });
-  } else if (!screenId) {
-    add("animal_nao_identificado_na_tela", "info", "A identificação do animal não aparece na tela; vale conferir antes de aprovar.", {});
+  // Identificação: texto da tela tem significado não confirmado.
+  const idTexts = (screen.texts || []).filter((t) => t.likely_role === "identificação do paciente").map((t) => t.text);
+  const known = [animal.tag, animal.name].filter(Boolean).map(norm);
+  if (!idTexts.length) {
+    add("identificacao_ausente_na_tela", "info", "A tela não mostra identificação do paciente; confira o animal antes de assinar.", {}, "conferencia");
+  } else if (idTexts.some((t) => known.includes(norm(t)))) {
+    add("identificacao_confere", "info", `O texto da tela (${idTexts.join(", ")}) coincide com o cadastro do exame.`, { screen: idTexts }, "conferencia");
+  } else {
+    add("identificacao_a_conferir", "alerta", `A tela mostra "${idTexts.join(", ")}" na área do paciente; o significado desse texto não está confirmado (pode ser o animal, o proprietário ou outro campo). O exame foi aberto para ${animal.tag}${animal.name ? ` · ${animal.name}` : ""}. Conferir a identificação.`, { screen: idTexts, registry: { tag: animal.tag, name: animal.name || null } }, "conferencia");
   }
 
-  const screenDate = parseScreenDate(reading.screen_text.exam_date);
-  if (screenDate && Math.abs(days(screenDate, exam.date)) > 1) {
-    add("data_divergente", "alerta", `A data na tela (${brDate(screenDate)}) difere da data do exame informada (${brDate(exam.date)}).`, { screen: screenDate, informed: exam.date });
+  const screenDate = parseScreenDate(screen.exam_date);
+  if (screenDate && screenDate !== exam.date) {
+    add("data_a_conferir", "alerta", `Data na tela: ${brDate(screenDate)}. Data informada no exame: ${brDate(exam.date)}. Conferir qual vale para o prontuário.`, { screen: screenDate, informed: exam.date }, "conferencia");
   }
 
-  for (const [key, range] of Object.entries(config.ranges)) {
-    const value = f[key]?.value;
-    if (typeof value === "number" && (value < range.min || value > range.max)) {
-      add("fora_da_faixa", "alerta", `${key} = ${value} ${range.unit} está fora da faixa configurada (${range.min} a ${range.max} ${range.unit}).`, { field: key, value, range });
+  for (const [key, m] of Object.entries(derived.measurements)) {
+    const range = config.ranges[key];
+    if (m && range && (m.value < range.min || m.value > range.max)) {
+      add("medida_fora_da_faixa", "alerta", `Medida da tela ${m.label} = ${m.value} ${range.unit} fora da faixa configurada (${range.min} a ${range.max} ${range.unit}).`, { field: key, measurement: m, range }, "conferencia");
     }
   }
 
-  for (const [key, item] of Object.entries(f)) {
-    if (item.value !== null && item.confidence < config.minConfidence) {
-      add("baixa_confianca", "alerta", `O Leitor tem baixa confiança em ${key} (${Math.round(item.confidence * 100)}%).`, { field: key, confidence: item.confidence });
-    }
-    if (["gestational_age_days", "corpus_luteum_mm", "follicle_largest_mm"].includes(key) && item.value !== null && item.source !== "medida_na_tela") {
-      add("medida_sem_tela", "bloqueio", `${key} veio sem medida escrita na tela; número estimado a olho não entra no prontuário.`, { field: key, source: item.source });
-    }
-  }
-
+  // Histórico: só contextualiza; nunca prova ou nega estrutura.
   const services = (history.services || []).filter((s) => s.date <= exam.date).sort((a, b) => b.date.localeCompare(a.date));
-  const lastService = services[0];
-  if (f.pregnancy.value === "prenhe") {
-    if (!lastService || days(exam.date, lastService.date) > config.serviceLookbackDays) {
-      add("prenhe_sem_servico", "alerta", `O Leitor indica prenhez, mas não há inseminação, IATF ou monta registrada nos últimos ${config.serviceLookbackDays} dias.`, { lastService: lastService || null });
-    } else if (typeof f.gestational_age_days.value === "number") {
-      const sinceService = days(exam.date, lastService.date);
-      const diff = f.gestational_age_days.value - sinceService;
-      if (Math.abs(diff) > config.gestationalToleranceDays) {
-        add("idade_gestacional_divergente", "alerta", `Idade gestacional lida: ${f.gestational_age_days.value} dias. Último serviço registrado (${lastService.type}, ${brDate(lastService.date)}): ${sinceService} dias antes do exame. Diferença de ${Math.abs(diff)} dias.`, { read: f.gestational_age_days.value, sinceService, service: lastService });
-      } else {
-        add("idade_gestacional_coerente", "info", `Idade gestacional lida (${f.gestational_age_days.value} dias) é coerente com o serviço de ${brDate(lastService.date)} (${sinceService} dias).`, { read: f.gestational_age_days.value, sinceService });
-      }
-    }
+  const lastService = services[0] || null;
+  const gestationShown = visual.gestation.status === "estruturas gestacionais identificadas";
+  if (gestationShown && (!lastService || days(exam.date, lastService.date) > config.serviceLookbackDays)) {
+    add("gestacao_sem_servico", "alerta", `O leitor visual indicou estruturas gestacionais, mas não há inseminação, IATF ou monta registrada nos últimos ${config.serviceLookbackDays} dias.`, { lastService }, "historico");
+  }
+  const ga = derived.measurements.gestational_age_days;
+  if (ga && lastService) {
+    const since = days(exam.date, lastService.date);
+    const diff = ga.value - since;
+    add(Math.abs(diff) > config.gestationalToleranceDays ? "idade_gestacional_divergente" : "idade_gestacional_coerente",
+      Math.abs(diff) > config.gestationalToleranceDays ? "alerta" : "info",
+      `Idade gestacional medida na tela: ${ga.value} dias. Último serviço registrado (${lastService.type}, ${brDate(lastService.date)}): ${since} dias antes do exame.`, { measured: ga.value, since, service: lastService }, "historico");
+  }
+  const previous = (history.ultrasounds || []).filter((u) => u.date < exam.date).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+  if (previous?.pregnancy === "prenhe" && !gestationShown && days(exam.date, previous.date) <= config.previousPositiveWindowDays) {
+    add("positivo_anterior", "alerta", `O exame de ${brDate(previous.date)} registrou prenhez. Este clipe não demonstra estruturas gestacionais, o que não equivale a resultado negativo.`, { previous }, "historico");
   }
 
-  const previous = (history.ultrasounds || []).filter((u) => u.date < exam.date).sort((a, b) => b.date.localeCompare(a.date))[0];
-  if (f.pregnancy.value === "vazia" && previous?.pregnancy === "prenhe" && days(exam.date, previous.date) <= config.previousPositiveWindowDays) {
-    add("vazia_apos_positivo", "alerta", `O exame anterior, de ${brDate(previous.date)}, registrou prenhez; este indica vazia.`, { previous });
-  }
-
-  const blocked = checks.some((c) => c.severity === "bloqueio");
-  return { checks, blocked, lastService: lastService || null, previousExam: previous || null };
+  return { checks, blocked: checks.some((c) => c.severity === "bloqueio"), lastService, previousExam: previous };
 }
 
 module.exports = { crossCheck, parseScreenDate };

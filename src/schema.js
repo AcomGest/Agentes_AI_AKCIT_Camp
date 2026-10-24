@@ -1,118 +1,122 @@
 "use strict";
 
 /**
- * Contrato da saída do Leitor (VLM). O mesmo objeto vai para o Gemini como
- * responseJsonSchema e é revalidado aqui: o modelo só sugere, o código decide
- * o que é aceito.
+ * Contratos dos dois leitores (v3). Vão para o Gemini como
+ * responseJsonSchema e são revalidados aqui: o modelo só sugere.
+ *
+ * SCREEN_SCHEMA — Leitor de tela: só o texto escrito pelo aparelho. Nenhum
+ *   texto vira automaticamente nome do animal: o significado fica "não
+ *   confirmado" e a conferência com o cadastro é feita pelo Cruzamento.
+ * VISUAL_SCHEMA — Leitor visual: só a região ultrassonográfica recortada, sem
+ *   cadastro, histórico ou texto da tela. Descrição separada de interpretação,
+ *   status categórico (sem percentuais), cada estrutura ligada aos quadros.
  */
-const finding = (valueSchema) => ({
-  type: "object",
-  properties: {
-    value: valueSchema,
-    confidence: { type: "number" },
-    evidence: { type: "string" },
-    source: { type: "string", enum: ["medida_na_tela", "texto_na_tela", "observacao_visual", "nao_visivel"] }
-  },
-  required: ["value", "confidence", "evidence", "source"]
-});
+const str = { type: "string" };
+const strOrNull = { type: ["string", "null"] };
+const numOrNull = { type: ["number", "null"] };
 
-const VLM_SCHEMA = {
+const SCREEN_SCHEMA = {
   type: "object",
   properties: {
-    screen_text: {
-      type: "object",
-      properties: {
-        animal_id: { type: ["string", "null"] },
-        exam_date: { type: ["string", "null"] },
-        equipment: { type: ["string", "null"] },
-        measurements: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: { label: { type: "string" }, value: { type: "number" }, unit: { type: "string" } },
-            required: ["label", "value", "unit"]
-          }
-        }
-      },
-      required: ["animal_id", "exam_date", "equipment", "measurements"]
+    texts: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          text: str,
+          position: { type: "string", enum: ["topo", "base", "esquerda", "direita", "dentro da imagem"] },
+          likely_role: { type: "string", enum: ["identificação do paciente", "data/hora", "aparelho", "transdutor", "parâmetro de aquisição", "medida", "orientação", "outro"] }
+        },
+        required: ["text", "position", "likely_role"]
+      }
     },
-    findings: {
-      type: "object",
-      properties: {
-        pregnancy: finding({ type: ["string", "null"], enum: ["prenhe", "vazia", "indeterminado", null] }),
-        gestational_age_days: finding({ type: ["number", "null"] }),
-        corpus_luteum_mm: finding({ type: ["number", "null"] }),
-        follicle_largest_mm: finding({ type: ["number", "null"] }),
-        uterine_horn: finding({ type: ["string", "null"], enum: ["direito", "esquerdo", "ambos", null] }),
-        fluid_presence: finding({ type: ["string", "null"], enum: ["sim", "nao", null] }),
-        fetal_heartbeat: finding({ type: ["string", "null"], enum: ["visivel", "nao_visivel", null] })
-      },
-      required: ["pregnancy", "gestational_age_days", "corpus_luteum_mm", "follicle_largest_mm", "uterine_horn", "fluid_presence", "fetal_heartbeat"]
-    },
+    exam_date: strOrNull,
+    exam_time: strOrNull,
+    equipment: strOrNull,
+    transducer: strOrNull,
+    frequency_mhz: numOrNull,
+    depth_cm: numOrNull,
+    measurements: {
+      type: "array",
+      items: { type: "object", properties: { label: str, value: { type: "number" }, unit: str }, required: ["label", "value", "unit"] }
+    }
+  },
+  required: ["texts", "exam_date", "exam_time", "equipment", "transducer", "frequency_mhz", "depth_cm", "measurements"]
+};
+
+const IDENT_STATUS = ["identificado", "hipótese", "não identificado com segurança"];
+const STATE = ["compatível com o esperado no que foi visualizado", "alteração morfológica suspeita", "inconclusiva"];
+const ONTOLOGY = ["ovário", "folículo", "corpo lúteo", "cavidade luteal", "corno uterino", "corpo uterino", "conteúdo uterino", "vesícula gestacional", "embrião/feto"];
+
+const VISUAL_SCHEMA = {
+  type: "object",
+  properties: {
     image_quality: {
       type: "object",
-      properties: { usable: { type: "boolean" }, issues: { type: "array", items: { type: "string" } } },
+      properties: { usable: { type: "boolean" }, issues: { type: "array", items: str } },
       required: ["usable", "issues"]
-    },
-    // v2: descrição técnica e anatômica para o laudo. Nada daqui vai para os
-    // campos do prontuário: estimativas e hipóteses ficam em seções marcadas.
-    technical: {
-      type: "object",
-      properties: {
-        mode: { type: ["string", "null"] }, transducer: { type: ["string", "null"] }, frequency_mhz: { type: ["number", "null"] },
-        depth_cm: { type: ["number", "null"] }, preset: { type: ["string", "null"] }, is_video: { type: "boolean" },
-        quality: { type: "string", enum: ["EXCELENTE", "BOA", "REGULAR", "RUIM"] }, artifacts: { type: "array", items: { type: "string" } }
-      },
-      required: ["mode", "transducer", "frequency_mhz", "depth_cm", "preset", "is_video", "quality", "artifacts"]
     },
     structures: {
       type: "array",
       items: {
         type: "object",
         properties: {
-          name: { type: "string" }, in_ontology: { type: "boolean" },
-          confidence_level: { type: "string", enum: ["ALTA", "MODERADA", "BAIXA"] }, justification: { type: "string" },
-          location: { type: "string" }, side: { type: "string", enum: ["direito", "esquerdo", "indeterminado"] },
-          major_mm: { type: ["number", "null"] }, minor_mm: { type: ["number", "null"] }, calibrated: { type: "boolean" },
-          echogenicity: { type: "string" }, description: { type: "string" }
+          id: str,
+          identification: str,
+          identification_status: { type: "string", enum: IDENT_STATUS },
+          frames: { type: "array", items: { type: "integer" } },
+          location_in_frame: str,
+          evidence: str,
+          shape: str, contours: str, echogenicity: str, echotexture: str,
+          content: { type: "string", enum: ["sólido", "líquido", "misto", "não avaliável"] },
+          internal_features: str,
+          parent_id: strOrNull,
+          relations: str,
+          possible_artifact: { type: "boolean" },
+          state: { type: "string", enum: STATE },
+          state_basis: str,
+          suspected_changes: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { observed: str, possible_meaning: str, pathologic_hypothesis: strOrNull, differentials: { type: "array", items: str }, confirm_by: str },
+              required: ["observed", "possible_meaning", "pathologic_hypothesis", "differentials", "confirm_by"]
+            }
+          },
+          limitations: str
         },
-        required: ["name", "in_ontology", "confidence_level", "justification", "location", "side", "major_mm", "minor_mm", "calibrated", "echogenicity", "description"]
+        required: ["id", "identification", "identification_status", "frames", "location_in_frame", "evidence", "shape", "contours", "echogenicity", "echotexture", "content", "internal_features", "parent_id", "relations", "possible_artifact", "state", "state_basis", "suspected_changes", "limitations"]
       }
     },
-    hypotheses: {
+    not_evaluated: {
       type: "array",
-      items: {
-        type: "object",
-        properties: {
-          finding: { type: "string" }, compatible_with: { type: "string" },
-          confidence_level: { type: "string", enum: ["ALTA", "MODERADA", "BAIXA"] }, justification: { type: "string" },
-          confirm_by: { type: "string" }
-        },
-        required: ["finding", "compatible_with", "confidence_level", "justification", "confirm_by"]
-      }
+      items: { type: "object", properties: { structure: str, reason: str }, required: ["structure", "reason"] }
     },
-    limitations: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: { item: { type: "string" }, kind: { type: "string", enum: ["nao_visualizado", "ausencia_confirmada", "limitacao_tecnica"] } },
-        required: ["item", "kind"]
-      }
+    gestation: {
+      type: "object",
+      properties: {
+        status: { type: "string", enum: ["estruturas gestacionais identificadas", "não demonstrada neste clipe", "inconclusiva"] },
+        frames: { type: "array", items: { type: "integer" } },
+        basis: str
+      },
+      required: ["status", "frames", "basis"]
+    },
+    preliminary_interpretation: {
+      type: "object",
+      properties: { text: str, basis: str },
+      required: ["text", "basis"]
     }
   },
-  required: ["screen_text", "findings", "image_quality", "technical", "structures", "hypotheses", "limitations"]
+  required: ["image_quality", "structures", "not_evaluated", "gestation", "preliminary_interpretation"]
 };
-
-const ONTOLOGY = ["ovário", "folículo", "corpo lúteo", "cavidade luteal", "corno uterino", "corpo uterino", "conteúdo uterino", "vesícula embrionária", "embrião/feto"];
-
-const FINDING_KEYS = Object.keys(VLM_SCHEMA.properties.findings.properties);
 
 /** Validador mínimo do subconjunto de JSON Schema usado acima (sem dependências). */
 function validate(schema, value, path = "$") {
   const errors = [];
   const types = Array.isArray(schema.type) ? schema.type : schema.type ? [schema.type] : [];
-  const typeOf = (v) => (v === null ? "null" : Array.isArray(v) ? "array" : typeof v === "number" ? (Number.isFinite(v) ? "number" : "nan") : typeof v);
-  const actual = typeOf(value);
+  const typeOf = (v) => (v === null ? "null" : Array.isArray(v) ? "array" : typeof v === "number" ? (Number.isFinite(v) ? (Number.isInteger(v) ? "integer" : "number") : "nan") : typeof v);
+  let actual = typeOf(value);
+  if (actual === "integer" && !types.includes("integer")) actual = "number";
   if (types.length && !types.includes(actual)) {
     errors.push(`${path}: esperado ${types.join("|")}, veio ${actual}`);
     return errors;
@@ -126,16 +130,18 @@ function validate(schema, value, path = "$") {
   return errors;
 }
 
-/** Confiança sempre entre 0 e 1; valor nulo nunca tem confiança alta. */
-function normalizeFindings(output) {
-  for (const key of FINDING_KEYS) {
-    const f = output.findings[key];
-    f.confidence = Math.max(0, Math.min(1, Number(f.confidence) || 0));
-    if (f.value === null) f.confidence = 0;
+/** Ajustes que o código impõe à leitura visual, independentemente do modelo. */
+function normalizeVisual(output, frameCount) {
+  const valid = (list) => [...new Set((list || []).filter((n) => Number.isInteger(n) && n >= 1 && n <= frameCount))];
+  for (const s of output.structures) {
+    s.frames = valid(s.frames);
+    s.in_ontology = ONTOLOGY.includes(String(s.identification || "").trim().toLowerCase());
+    // Afirmação visual sem quadro de referência não pode ser conferida: rebaixa para hipótese.
+    if (!s.frames.length && s.identification_status === "identificado") s.identification_status = "hipótese";
   }
-  // A ontologia é conferida pelo código, não pela palavra do modelo.
-  for (const s of output.structures || []) s.in_ontology = ONTOLOGY.includes(String(s.name || "").trim().toLowerCase());
+  output.gestation.frames = valid(output.gestation.frames);
+  if (output.gestation.status === "estruturas gestacionais identificadas" && !output.gestation.frames.length) output.gestation.status = "inconclusiva";
   return output;
 }
 
-module.exports = { VLM_SCHEMA, FINDING_KEYS, ONTOLOGY, validate, normalizeFindings };
+module.exports = { SCREEN_SCHEMA, VISUAL_SCHEMA, ONTOLOGY, IDENT_STATUS, STATE, validate, normalizeVisual };

@@ -7,7 +7,9 @@
  * conferência, nunca para concluir um diagnóstico.
  */
 const DEFAULT_CONFIG = {
-  promptVersion: "ultrassom-leitor-v2",
+  promptVersion: "ultrassom-tela-v1 + ultrassom-visual-v3",
+  // Quadros distribuídos ao longo de cada vídeo enviados ao leitor visual.
+  framesPerVideo: 8,
   media: {
     // AVI é o formato que muitos aparelhos de ultrassom exportam.
     allowedMimeTypes: ["image/jpeg", "image/png", "video/mp4", "video/quicktime", "video/avi", "video/x-msvideo"],
@@ -30,7 +32,7 @@ const DEFAULT_CONFIG = {
   // Janela para comparar com um exame anterior positivo.
   previousPositiveWindowDays: 90,
   maxVlmAttempts: 2,
-  maxSteps: 8
+  maxSteps: 12
 };
 
 module.exports = { DEFAULT_CONFIG };

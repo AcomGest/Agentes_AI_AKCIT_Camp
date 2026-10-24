@@ -22,7 +22,7 @@ O agente foi construído para errar de forma segura: quando não tem certeza, el
 
 | Teste | O que prova | Resultado |
 | --- | --- | --- |
-| `agents/ultrasound-agent/test/harness.test.js` | Guarda recusa sem chamar o modelo; caminho feliz; contrato inválido com nova tentativa e falha fechada; falha do modelo; animal divergente, idade gestacional divergente e medida sem tela bloqueiam; prenhe sem serviço e vazia após positivo; Verificador recusa número inventado e recomendação | 7 de 7 cenários passaram |
+| `agents/ultrasound-agent/test/harness.test.js` | Guarda recusa sem chamar o modelo; caminho feliz; contrato inválido com nova tentativa e falha fechada; falha do modelo; animal divergente, idade gestacional divergente e medida sem tela bloqueiam; prenhe sem serviço e vazia após positivo; Verificador recusa número inventado e recomendação | 9 de 9 cenários passaram (v3) |
 | `scripts/backend-ultrasound-agent-smoke-test.cjs` | Servidor real (SQLite): analisar não grava; sem permissão 403; outra fazenda 404; arquivo inválido 400; rascunho salvo com IA = Sim; Gerente não aprova; Veterinário aprova; exame sem IA mantém a regra antiga | 6 de 6 cenários passaram |
 
 Os dois testes usam um modelo falso: eles provam a lógica do agente, não a qualidade da leitura do Gemini.
@@ -39,6 +39,29 @@ Um vídeo AVI de 13 MB exportado de um aparelho Mindray, rodado com o Gemini (`g
 | Medidas | Descreveu estrutura ovariana/lútea visível, mas deixou o corpo lúteo vazio por não haver medida na tela (nenhum número inventado) |
 | Gestação | "indeterminado", confiança 50%, com a evidência "exame focado em ovário"; gerou alerta de baixa confiança |
 | Custo e tempo do Leitor | 622 tokens de entrada e 509 de saída, 16 s |
+
+## Correção v3: fontes separadas (24/10/2026)
+
+**Causa encontrada.** Na v2, uma única chamada recebia o vídeo inteiro mais o contexto do cadastro e fazia, ao mesmo tempo, a leitura do texto da tela, a análise visual e o preenchimento de um campo "animal". Consequências no vídeo de referência `202510221345170005OB.AVI`:
+
+- O texto "Gabriel", na lateral da tela, virou o "animal" do exame e gerou um bloqueio falso, `animal_divergente`.
+- Como não havia quadros nem instantes, não dava para conferir em que momento do clipe cada estrutura aparecia, nem saber quanto do vídeo foi examinado.
+- Texto periférico e cadastro entravam na mesma leitura visual.
+- As porcentagens de confiança eram geradas pelo próprio modelo, sem calibração.
+
+**Correção.** O fluxo virou: preparo dos quadros (ffmpeg: 8 quadros distribuídos, com instante, e recorte da região da imagem por densidade de pixels) → leitor de tela (só transcreve) → leitor visual (recebe só os recortes numerados, sem cadastro, sem histórico e sem texto da tela) → cruzamento (cada verificação com a sua fonte) → redator → verificador. Não há mais porcentagens. Uma identificação sem quadro conferível é rebaixada para "hipótese", e uma gestação sem quadro vira "inconclusiva".
+
+| | Antes (v2, produção) | Depois (v3) |
+| --- | --- | --- |
+| "Gabriel" | campo `animal_id` → bloqueio `animal_divergente` | texto da tela com o papel provável "identificação do paciente" → alerta `identificacao_a_conferir` ("o significado desse texto não está confirmado") |
+| Cobertura | não informada | 8 quadros de 0,3 s a 4,7 s, num clipe de 5 s; recorte x180 y92 280×436 |
+| Estruturas | ovário e folículo, com porcentagem "ALTA" | ovário (quadros 1–8), corpo lúteo (1–8) e folículo (5–8), cada um com evidência, características e estado "compatível com o esperado no que foi visualizado" |
+| Gestação | campo com confiança | "não demonstrada neste clipe"; não avaliados: corno uterino, corpo uterino, ovário contralateral |
+| Arquivo corrompido | — | `falha_no_processamento`, que é diferente de "sem achados" |
+
+**Variabilidade.** Rodei de novo com outro brinco, outro nome e outro histórico. As estruturas e o status da gestação saíram iguais, mas o corpo lúteo veio como "hipótese" em vez de "identificado". Isso é variabilidade do modelo. As identificações são experimentais, sem desempenho validado.
+
+Validação reproduzível: `node agents/ultrasound-agent/eval/validate-reference.js <arquivo.AVI>` (5 verificações: fontes separadas, quadros citados, cobertura, nada do cadastro na saída visual, falha de processamento explícita).
 
 ## Avaliação da leitura com exames reais (a fazer)
 
